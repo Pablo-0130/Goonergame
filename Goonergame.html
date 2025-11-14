@@ -1,0 +1,150 @@
+<div style="display:flex;justify-content:center;align-items:center;height:100vh;">
+  <canvas id="game" style="border:1px solid #000;"></canvas>
+</div>
+
+<div style="position:absolute;bottom:20px;left:50%;transform:translateX(-50%);">
+  <button id="upBtn" style="font-size:30px;padding:20px 40px;margin-right:20px;">↑</button>
+  <button id="downBtn" style="font-size:30px;padding:20px 40px;">↓</button>
+</div>
+
+<div id="score" style="position:absolute;top:20px;left:20px;font-size:20px;">Gooner Point: 0</div>
+<div id="speedBar" style="position:absolute;top:50px;left:20px;width:200px;height:20px;background:#555;">
+  <div id="speedFill" style="width:0%;height:100%;background:red;"></div>
+</div>
+
+<button id="startBtn" style="font-size:24px;padding:15px 30px;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%)">
+  Тоглоомоо эхлүүл гичий минь
+</button>
+
+<!-- Background music -->
+<audio id="bgMusic" src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" loop></audio>
+<!-- Button click sound -->
+<audio id="clickSound" src="https://www.soundjay.com/button/sounds/button-16.mp3"></audio>
+
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const bgMusic = document.getElementById('bgMusic');
+const clickSound = document.getElementById('clickSound');
+const startBtn = document.getElementById('startBtn');
+
+// Canvas-ийг дэлгэцэнд тохируулах
+function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+let player = {x:50,y:canvas.height/2,width:30,height:30,color:'red'};
+let obstacles = [];
+let powerUps = [];
+let score = 0;
+let gameOver = false;
+let obstacleSpeed = 5;
+
+// Parallax background offsets
+let bgOffset1 = 0;
+let bgOffset2 = 0;
+
+// Touch controls with click sound
+function playClick(){
+    clickSound.volume = 0.3;
+    clickSound.currentTime = 0;
+    clickSound.play().catch(err=>console.log(err));
+}
+
+document.getElementById('upBtn').addEventListener('touchstart',()=>{ 
+    player.y -= 50; 
+    if(player.y<0) player.y = 0;
+    playClick();
+});
+document.getElementById('downBtn').addEventListener('touchstart',()=>{ 
+    player.y += 50; 
+    if(player.y > canvas.height-player.height) player.y = canvas.height-player.height;
+    playClick();
+});
+
+// Obstacle & power-up functions
+function spawnObstacle(){
+  const y = Math.random()*(canvas.height-30);
+  const speed = obstacleSpeed + Math.random()*2;
+  obstacles.push({x:canvas.width,y:y,width:30,height:30,color:'black',speed:speed});
+}
+
+function spawnPowerUp(){
+  const y = Math.random()*(canvas.height-20);
+  powerUps.push({x:canvas.width,y:y,width:20,height:20,color:'yellow'});
+}
+
+// Gradual speed increase
+let speedIncreaseInterval = 2000; 
+setInterval(() => {
+    if (!gameOver) obstacleSpeed += 0.2;
+}, speedIncreaseInterval);
+
+function update(){
+  if(gameOver) return;
+
+  // Parallax background
+  bgOffset1 -= 1;
+  bgOffset2 -= 2;
+  if(bgOffset1 <= -canvas.width) bgOffset1 = 0;
+  if(bgOffset2 <= -canvas.width) bgOffset2 = 0;
+  ctx.fillStyle='#87CEEB'; ctx.fillRect(bgOffset1,0,canvas.width,canvas.height);
+  ctx.fillRect(bgOffset1+canvas.width,0,canvas.width,canvas.height);
+  ctx.fillStyle='#a0e0ff'; ctx.fillRect(bgOffset2,0,canvas.width,canvas.height);
+  ctx.fillRect(bgOffset2+canvas.width,0,canvas.width,canvas.height);
+
+  // Player
+  ctx.fillStyle = player.color;
+  ctx.fillRect(player.x,player.y,player.width,player.height);
+
+  // Obstacles
+  obstacles.forEach((obs,i)=>{
+    obs.x -= obs.speed;
+    ctx.fillStyle = obs.color;
+    ctx.fillRect(obs.x,obs.y,obs.width,obs.height);
+
+    // Collision
+    if(player.x<obs.x+obs.width && player.x+player.width>obs.x && player.y<obs.y+obs.height && player.y+player.height>obs.y){
+      gameOver = true;
+      alert('Арчаагүй ал! Gooner Point: '+score);
+      location.reload();
+    }
+
+    if(obs.x+obs.width<0) obstacles.splice(i,1);
+  });
+
+  // Power-ups
+  powerUps.forEach((p,i)=>{
+    p.x -= obstacleSpeed;
+    ctx.fillStyle=p.color;
+    ctx.fillRect(p.x,p.y,p.width,p.height);
+    if(player.x<p.x+p.width && player.x+player.width>p.x && player.y<p.y+p.height && player.y+player.height>p.y){
+      score += 50;
+      powerUps.splice(i,1);
+    }
+    if(p.x+p.width<0) powerUps.splice(i,1);
+  });
+
+  // Update red speed bar
+  let speedPercent = Math.min(100,(obstacleSpeed-5)*5);
+  document.getElementById('speedFill').style.width = speedPercent + '%';
+
+  score++;
+  document.getElementById('score').innerText = 'Gooner Point: '+score;
+
+  requestAnimationFrame(update);
+}
+
+// Тоглоомыг эхлүүлэх
+startBtn.addEventListener('click', ()=>{
+    bgMusic.volume = 0.3;
+    bgMusic.play().catch(err => console.log("Audio тоглох боломжгүй:", err));
+    startBtn.style.display = 'none';
+    setInterval(spawnObstacle,2200);
+    setInterval(spawnPowerUp,7000);
+    update();
+});
+</script>
